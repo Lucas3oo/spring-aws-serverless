@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xml>
+
+<configuration scan="true" scanPeriod="60 seconds" debug="false">
+
+  <!-- These will be included in the log record.  -->
+  <springProperty scope="context" name="app.name" source="slrk.app-name" defaultValue="demo" />
+  <springProperty scope="context" name="environment" source="slrk.environment-name" defaultValue="localhost" />
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <pattern>%d [${HOSTNAME}] [%thread] %-5level %logger{36} - %msg%n
+      </pattern>
+    </encoder>
+  </appender>
+
+  <!--
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <messageSplitRegex>SYSTEM</messageSplitRegex>
+    </encoder>
+  </appender>
+  -->
+
+  <logger name="se.solrike" level="DEBUG" />
+  <logger name="com.amazonaws" level="INFO" />
+  <logger name="com.zaxxer.hikari" level="INFO" />
+  <logger name="com.mysql.jdbc" level="INFO" />
+  <logger name="org.apache.http" level="INFO" />
+  <logger name="org.apache.catalina" level="INFO" />
+  <logger name="org.apache.commons.fileupload" level="DEBUG" />
+  <logger name="org.apache.tomcat" level="INFO" />
+  <logger name="org.hibernate" level="INFO" />
+  <logger name="org.springframework" level="INFO" />
+  <logger name="org.springframework.boot.autoconfigure.batch.JpaBatchConfigurer" level="ERROR"/>
+  <logger name="org.reflections.Reflections" level="INFO" />
+  <logger name="io.awspring.cloud.paramstore.AwsParamStorePropertySource" level="DEBUG"/>
+
+
+  <logger name="org.zalando.logbook" level="TRACE"/> <!-- http req/resp logging-->
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+  </root>
+</configuration>

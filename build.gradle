@@ -1,0 +1,203 @@
+
+// Simple HelloWorld project to Spring boot wrapped in AWS lamda function
+// The build is generating a jar which includes a lib folder with all third pary jars needed.
+// So the jar is self contained which is a must in order to use AWS Lambda
+
+plugins {
+  id 'eclipse'
+  id 'java'
+  id 'maven-publish'
+
+  // https://plugins.gradle.org/plugin/com.github.mjdetullio.gradle.coverity
+  // id "com.github.mjdetullio.gradle.coverity" version "1.0.10"
+  // findbugs replacement
+  id 'com.github.spotbugs' version '2.0.1'
+  // https://github.com/spring-gradle-plugins/dependency-management-plugin/blob/master/README.md
+  id 'io.spring.dependency-management' version '1.0.11.RELEASE' apply true
+  id 'org.ajoberstar.grgit' version '4.1.1'
+  id 'org.owasp.dependencycheck' version '7.1.0.1'
+  id 'se.solrike.sonarlint' version '1.0.0-beta.5'
+
+
+}
+
+allprojects {
+  group = 'se.solrike.cloud.serverless'
+  version = '0.0.1-beta1'
+}
+
+repositories {
+  mavenCentral()
+}
+
+
+// ********* keep in alphabetic order !!!! ************
+dependencyManagement {
+  dependencies {
+//    // newer compared to spring 2.5.8 to avoid security issues
+//    dependencySet (group:'ch.qos.logback',version:'1.2.10'){
+//      entry 'logback-classic'
+//      entry 'logback-core'
+//    }
+
+
+    def awsSdkVersion = '1.12.213'
+    dependency "com.amazonaws:aws-java-sdk-cloudfront:$awsSdkVersion" // used to create signed urls
+    dependency "com.amazonaws:aws-java-sdk-cloudwatch:$awsSdkVersion"
+    dependency ("com.amazonaws:aws-java-sdk-core:$awsSdkVersion") {
+    }
+    dependency "com.amazonaws:aws-java-sdk-kms:$awsSdkVersion"
+    dependency "com.amazonaws:aws-java-sdk-rds:$awsSdkVersion"
+    dependency "com.amazonaws:aws-java-sdk-s3:$awsSdkVersion"
+    dependency "com.amazonaws:aws-java-sdk-ses:$awsSdkVersion"
+    dependency "com.amazonaws:aws-java-sdk-sns:$awsSdkVersion"
+    dependency "com.amazonaws:aws-java-sdk-sqs:$awsSdkVersion" // used by aws-java-sdk-sns
+    dependency "com.amazonaws:aws-java-sdk-ssm:$awsSdkVersion"
+    dependency "com.amazonaws:aws-java-sdk-sts:$awsSdkVersion"
+    dependency ("com.amazonaws:jmespath-java:$awsSdkVersion") {
+      // used by rds, s3, kms
+    }
+
+    dependency 'com.amazonaws.serverless:aws-serverless-java-container-springboot2:1.8'
+
+    // spring boot and spring cloud needs to go hand in hand
+    // see for compatabilities between spring boot and spring cloud aws https://awspring.io
+    // version 2.4.1 points to org.springframework.cloud 3.1.0
+    dependencySet (group:'io.awspring.cloud',version: '2.4.1' ){
+      entry 'spring-cloud-aws-context'
+      entry 'spring-cloud-aws-core'
+      entry 'spring-cloud-aws-parameter-store-config'
+      entry 'spring-cloud-starter-aws-parameter-store-config'
+      entry 'spring-cloud-aws-autoconfigure'
+    }
+    dependency 'io.symphonia:lambda-logging:1.0.3'
+    dependency 'javax.annotation:javax.annotation-api:1.3.2'
+    dependency 'javax.ws.rs:javax.ws.rs-api:2.1.1'
+    dependency 'mysql:mysql-connector-java:8.0.28'
+    dependency 'net.logstash.logback:logstash-logback-encoder:6.5'
+    // set to latest as of 2022-01-05 to avoid log4j-core CVE false positive
+    dependency 'org.apache.logging.log4j:log4j-api:2.17.1'
+    dependency 'org.apache.logging.log4j:log4j-to-slf4j:2.17.1'
+
+    // use 4.0.0 instead of 3.0.3 which has a security bug
+    dependency 'org.glassfish:jakarta.el:4.0.0'
+    dependency 'org.hibernate.javax.persistence:hibernate-jpa-2.1-api:1.0.2.Final'
+    // if this is updated the internal-api/.factorypath file also needs to be updated
+    def mapStructVersion = '1.4.1.Final'
+    dependency "org.mapstruct:mapstruct:$mapStructVersion"
+    dependency "org.mapstruct:mapstruct-processor:$mapStructVersion"
+
+    dependency 'org.slf4j:slf4j-api:1.7.36'
+
+
+    imports {
+      // rememebr to re-visit the versions when upgrading any of these
+      mavenBom 'org.springframework.boot:spring-boot-starter-parent:2.6.8'
+      mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2021.0.2' // this is points to org.springframework.cloud 3.1.2
+    }
+    // org.springframework.cloud:spring-cloud-build-dependencies:3.1.2
+    // points to org.springframework.boot:spring-boot-dependencies:2.6.7
+    dependency ('org.springframework.cloud:spring-cloud-starter:3.1.2') {
+      exclude 'org.bouncycastle:bcpkix-jdk15on'
+    }
+    dependency 'org.zalando:logbook-spring-boot-starter:2.14.0'
+    dependency 'se.solrike.spring-aws-extras:spring-aws-extras:0.0.4'
+    dependency 'org.codehaus.jettison:jettison:1.4.1'
+    dependency 'org.apache.commons:commons-email:1.5'
+    def elasticsearchVersion = '7.16.3'
+    dependency "org.elasticsearch.client:elasticsearch-rest-client:$elasticsearchVersion"
+    dependency "org.elasticsearch:elasticsearch-geo:$elasticsearchVersion"
+
+    // test dependeces
+    dependency 'org.assertj:assertj-core:3.22.0'
+    imports {
+      mavenBom 'org.junit:junit-bom:5.7.0'
+    }
+  }
+}
+
+
+dependencies {
+  implementation 'com.amazonaws.serverless:aws-serverless-java-container-springboot2'
+  implementation 'io.symphonia:lambda-logging'
+  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+  implementation('org.springframework.boot:spring-boot-starter-web') {
+    exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+  }
+  implementation ('se.solrike.spring-aws-extras:spring-aws-extras') {
+    exclude group: 'com.amazonaws'
+    exclude group: 'org.springframework.cloud'
+  }
+
+  implementation ('com.amazonaws:aws-java-sdk-core') {
+    // don't risk that AWS is using an older version of Jackson which is not compatible with OWASP dependecyCheck
+    exclude group: 'com.fasterxml.jackson.core'
+    exclude group: 'com.fasterxml.jackson.dataformat'
+  }
+
+  runtimeOnly 'com.h2database:h2'
+
+  // for logback
+  runtimeOnly 'net.logstash.logback:logstash-logback-encoder'
+
+
+  testImplementation 'org.assertj:assertj-core'
+  testImplementation 'org.junit.jupiter:junit-jupiter-api'
+  testImplementation('org.springframework.boot:spring-boot-starter-test')
+  testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+}
+
+
+spotbugsMain {
+  excludeFilter = rootProject.file('buildConfig/spotbugs/findbugs-exclude.xml')
+}
+
+// Java 11 since that is what AWS lambda supports.
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+java {
+  withSourcesJar()
+}
+
+
+jar {
+  into('lib') {
+    from configurations.runtimeClasspath
+  }
+  manifest {
+    def classpath = configurations.runtimeClasspath.resolve().collect { file ->
+      "lib/${file.name}"
+    }.sort().join(' ')
+    attributes 'Main-Class': 'se.solrike.cloud.serverless.Application'
+    attributes 'Class-Path': classpath
+  }
+}
+
+sonarlintMain {
+  maxIssues = 6
+}
+sonarlintTest {
+  maxIssues = 3
+}
+
+// run ./gradlew dependencyCheckAggregate
+dependencyCheck {
+  format = 'ALL'
+  autoUpdate = true
+  suppressionFile = rootProject.file('buildConfig/dependencyCheck/suppressions.xml')
+  scanConfigurations = ['runtimeClasspath']
+  skipTestGroups = true
+  analyzers {
+    ossIndex {
+      enabled = true
+    }
+  }
+}
+
+// to upgrade the metainfo about which gradle version we shall use. Run ./gradlew wrapper after you have updated the version. The commit the new wrapper files except the gradlew.bat
+wrapper {
+  gradleVersion = '7.5'
+}
+
+

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<FindBugsFilter>
+
+  <BugPattern name="JXI_INVALID_CONTEXT_PARAMETER_TYPE" />
+
+  <!-- EI: May expose internal representation by returning reference to mutable object -->
+  <BugPattern name="EI_EXPOSE_REP" />
+
+  <!-- EI2: May expose internal representation by incorporating reference to mutable object -->
+  <BugPattern name="EI_EXPOSE_REP2" />
+
+  <BugPattern name="FCCD_FIND_CLASS_CIRCULAR_DEPENDENCY" />
+
+  <!-- It can be easier to debug code with an extra local variable -->
+  <BugPattern name="USBR_UNNECESSARY_STORE_BEFORE_RETURN" />
+
+  <!-- Unconstrained method converts checked exception to unchecked -->
+  <BugPattern name="EXS_EXCEPTION_SOFTENING_NO_CONSTRAINTS" />
+
+  <!-- Not a big deal if equals is used on enums instead of == -->
+  <BugPattern name="SPP_EQUALS_ON_ENUM" />
+
+  <!-- Constrained method converts checked exception to unchecked -->
+  <BugPattern name="EXS_EXCEPTION_SOFTENING_NO_CHECKED" />
+
+  <Match>
+    <Field type="java.sql.Blob" />
+    <Bug pattern="SE_BAD_FIELD" />
+    <!-- Blob field in JPA entity classes are OK. -->
+  </Match>
+
+</FindBugsFilter>
