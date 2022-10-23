@@ -33,6 +33,17 @@ Once deployed you can access the service typically via:
       https://<API_ID>.execute-api.<AWS_REGION>.amazonaws.com/api/v1/items
 
 
+
+# Run locally
+Start the lambda in a "stay open" mode so it can receive multiple invocations.
+
+    ./gradlew dockerRun
+
+Then from another shell invoke it using curl to pass in a "aws proxy event" payload.
+
+    // curl --data "@test-events/get-items-apigateway-aws-proxy-event.json" http://localhost:9001/2015-03-31/functions/myfunction/invocations
+
+
 # Source code
 The package structure does not follows Spring's recommended layout of one package per feature/domain concept.
 See <https://docs.spring.io/spring-boot/docs/current/reference/html/using.html#using.structuring-your-code>

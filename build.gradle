@@ -9,6 +9,7 @@ plugins {
   id 'maven-publish'
 
   id 'com.github.spotbugs' version '2.0.1'
+  id 'com.palantir.docker-run' version '0.34.0'
   // https://github.com/spring-gradle-plugins/dependency-management-plugin/blob/master/README.md
   id 'io.spring.dependency-management' version '1.0.11.RELEASE' apply true
   id 'org.ajoberstar.grgit' version '4.1.1'
@@ -20,7 +21,7 @@ plugins {
 
 allprojects {
   group = 'se.solrike.cloud.serverless'
-  version = '0.0.1-beta1'
+  version = '0.0.1-beta.1'
 }
 
 repositories {
@@ -120,7 +121,7 @@ dependencies {
   implementation 'com.amazonaws.serverless:aws-serverless-java-container-springboot2'
   implementation 'io.symphonia:lambda-logging'
   // Get OpenAPI doc at http://localhost:8080/v3/api-docs/ and UI at http://localhost:8080/swagger-ui.html
-  implementation 'org.springdoc:springdoc-openapi-ui'
+  //implementation 'org.springdoc:springdoc-openapi-ui'
   implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
   implementation('org.springframework.boot:spring-boot-starter-web') {
     // exclude Tomcat since it is not needed when running behind AWS API Gateway
@@ -175,6 +176,37 @@ jar {
     attributes 'Class-Path': classpath
   }
 }
+
+// Lambda local stage folder
+def stageLocalLambdaFolderName = "$buildDir/lambda"
+file(stageLocalLambdaFolderName).mkdirs()
+
+task stageLocalLambdaFolder(type: Copy) {
+  destinationDir = file(stageLocalLambdaFolderName)
+  from compileJava
+  from processResources
+  into('lib') {
+    from configurations.runtimeClasspath
+  }
+}
+
+// run the lambda locally in a docker container (https://github.com/mLupine/docker-lambda) , ./gradlew dockerRun
+// then in another shell do in order to simulate an API call
+// curl --data "@test-events/get-items-apigateway-aws-proxy-event.json" http://localhost:9001/2015-03-31/functions/myfunction/invocations
+dockerRun {
+  name 'my-lambda'
+  image 'mlupin/docker-lambda:java11'
+  volumes "$stageLocalLambdaFolderName": '/var/task:ro,delegated'
+  ports '9001:9001'
+  daemonize false
+  clean true // like --rm
+  env 'DOCKER_LAMBDA_STAY_OPEN': '1'
+  command 'se.solrike.cloud.serverless.StreamLambdaHandler'
+  //arguments
+}
+tasks.dockerRun.dependsOn 'stageLocalLambdaFolder'
+
+
 
 sonarlintMain {
   maxIssues = 6
