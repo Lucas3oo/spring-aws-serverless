@@ -1,1 +1,6 @@
+//pluginManagement {
+//  includeBuild '../cloudformation-gradle-plugin'
+//}
+
+
 rootProject.name = 'spring-aws-serverless'

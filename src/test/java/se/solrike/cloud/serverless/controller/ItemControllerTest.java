@@ -32,7 +32,7 @@ class ItemControllerTest {
 
   @Test
   void getAllItems() throws Exception {
-    MvcResult mvcResult = mMvc.perform(MockMvcRequestBuilders.get("/items").accept(MediaType.APPLICATION_JSON_VALUE))
+    MvcResult mvcResult = mMvc.perform(MockMvcRequestBuilders.get("/api/v1/items").accept(MediaType.APPLICATION_JSON_VALUE))
         .andReturn();
     int status = mvcResult.getResponse().getStatus();
     assertThat(status).isEqualTo(200);
@@ -45,12 +45,22 @@ class ItemControllerTest {
     String itemIdThatDoesNotExists = "4711";
     MvcResult mvcResult = mMvc
         .perform(
-            MockMvcRequestBuilders.get("/items/" + itemIdThatDoesNotExists).accept(MediaType.APPLICATION_JSON_VALUE))
+            MockMvcRequestBuilders.get("/api/v1/items/" + itemIdThatDoesNotExists).accept(MediaType.APPLICATION_JSON_VALUE))
         .andReturn();
     int status = mvcResult.getResponse().getStatus();
     assertThat(status).isEqualTo(404);
     String errorMsg = mvcResult.getResponse().getContentAsString();
     assertThat(errorMsg).contains(itemIdThatDoesNotExists);
+  }
+
+  @Test
+  void getOneItem() throws Exception {
+    MvcResult mvcResult = mMvc.perform(MockMvcRequestBuilders.get("/api/v1/items/2").accept(MediaType.APPLICATION_JSON_VALUE))
+        .andReturn();
+    int status = mvcResult.getResponse().getStatus();
+    assertThat(status).isEqualTo(200);
+    String content = mvcResult.getResponse().getContentAsString();
+    assertThat(content).contains("Frodo");
   }
 
 }

@@ -1,5 +1,5 @@
 
-// Simple HelloWorld project to Spring boot wrapped in AWS lamda function
+// Simple "HelloWorld" project to Spring boot wrapped in AWS lamda function
 // The build is generating a jar which includes a lib folder with all third pary jars needed.
 // So the jar is self contained which is a must in order to use AWS Lambda
 
@@ -8,17 +8,14 @@ plugins {
   id 'java'
   id 'maven-publish'
 
-  // https://plugins.gradle.org/plugin/com.github.mjdetullio.gradle.coverity
-  // id "com.github.mjdetullio.gradle.coverity" version "1.0.10"
-  // findbugs replacement
   id 'com.github.spotbugs' version '2.0.1'
   // https://github.com/spring-gradle-plugins/dependency-management-plugin/blob/master/README.md
   id 'io.spring.dependency-management' version '1.0.11.RELEASE' apply true
   id 'org.ajoberstar.grgit' version '4.1.1'
   id 'org.owasp.dependencycheck' version '7.1.0.1'
+  id 'se.solrike.cloudformation' version '1.0.0-beta.1'
   id 'se.solrike.sonarlint' version '1.0.0-beta.5'
-
-
+  id 'seek.aws' version '0.0.35' apply false
 }
 
 allprojects {
@@ -34,11 +31,11 @@ repositories {
 // ********* keep in alphabetic order !!!! ************
 dependencyManagement {
   dependencies {
-//    // newer compared to spring 2.5.8 to avoid security issues
-//    dependencySet (group:'ch.qos.logback',version:'1.2.10'){
-//      entry 'logback-classic'
-//      entry 'logback-core'
-//    }
+    //    // newer compared to spring 2.5.8 to avoid security issues
+    //    dependencySet (group:'ch.qos.logback',version:'1.2.10'){
+    //      entry 'logback-classic'
+    //      entry 'logback-core'
+    //    }
 
 
     def awsSdkVersion = '1.12.213'
@@ -89,6 +86,8 @@ dependencyManagement {
 
     dependency 'org.slf4j:slf4j-api:1.7.36'
 
+    // OpenAPI 3 specification support
+    dependency 'org.springdoc:springdoc-openapi-ui:1.6.4'
 
     imports {
       // rememebr to re-visit the versions when upgrading any of these
@@ -120,8 +119,11 @@ dependencyManagement {
 dependencies {
   implementation 'com.amazonaws.serverless:aws-serverless-java-container-springboot2'
   implementation 'io.symphonia:lambda-logging'
+  // Get OpenAPI doc at http://localhost:8080/v3/api-docs/ and UI at http://localhost:8080/swagger-ui.html
+  implementation 'org.springdoc:springdoc-openapi-ui'
   implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
   implementation('org.springframework.boot:spring-boot-starter-web') {
+    // exclude Tomcat since it is not needed when running behind AWS API Gateway
     exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
   }
   implementation ('se.solrike.spring-aws-extras:spring-aws-extras') {
@@ -149,7 +151,7 @@ dependencies {
 
 
 spotbugsMain {
-  excludeFilter = rootProject.file('buildConfig/spotbugs/findbugs-exclude.xml')
+  excludeFilter = rootProject.file('build-config/spotbugs/findbugs-exclude.xml')
 }
 
 // Java 11 since that is what AWS lambda supports.
@@ -160,7 +162,7 @@ java {
   withSourcesJar()
 }
 
-
+// package all dependecies inside the JAR as separate JARs. Much cleaner compared to a fat JAR.
 jar {
   into('lib') {
     from configurations.runtimeClasspath
@@ -185,7 +187,7 @@ sonarlintTest {
 dependencyCheck {
   format = 'ALL'
   autoUpdate = true
-  suppressionFile = rootProject.file('buildConfig/dependencyCheck/suppressions.xml')
+  suppressionFile = rootProject.file('build-config/dependency-check/suppressions.xml')
   scanConfigurations = ['runtimeClasspath']
   skipTestGroups = true
   analyzers {
@@ -194,6 +196,35 @@ dependencyCheck {
     }
   }
 }
+
+def lambdaRepoS3Bucket = 'slrk-lambda-repo'
+task uploadJarToS3(type: seek.aws.s3.UploadFile, dependsOn: jar) {
+  group = 'AWS'
+  description = 'Uploads the jar to S3 amazon storage so it can be referenced when defining the lambda function in AWS'
+  bucket lambdaRepoS3Bucket
+  file jar.archivePath
+  key jar.archiveFileName.get()
+}
+
+task deploySamStack(type: se.solrike.cloudformation.CreateOrUpdateStackTask, dependsOn: jar) {
+  group = 'AWS'
+  description = 'Deployment of the API gateway and the lambda using a SAM Cloudformation template'
+  Properties p = new Properties()
+  p.codeFileName = jar.archiveFileName.get()
+  p.codeS3BucketName = lambdaRepoS3Bucket
+  p.environment = 'stage25'
+  p.functionName = 'items-api'
+  p.handler = 'se.solrike.cloud.serverless.StreamLambdaHandler::handleRequest'
+  capabilities = [
+    'CAPABILITY_IAM',
+    'CAPABILITY_AUTO_EXPAND'
+  ]
+  parameters = p
+  stackName = "slrk-${p.environment}-aws-sam-${p.functionName}"
+  templateFileName = 'aws-cloudformation/aws-sam-httpapi.yaml'
+}
+
+
 
 // to upgrade the metainfo about which gradle version we shall use. Run ./gradlew wrapper after you have updated the version. The commit the new wrapper files except the gradlew.bat
 wrapper {
